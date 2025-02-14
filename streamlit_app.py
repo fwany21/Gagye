@@ -7,7 +7,7 @@ from PIL import Image
 import io
 from datetime import datetime
 # --- MongoDB 연결 및 인덱스 설정 ---
-MONGO_URI = ""
+MONGO_URI = st.secrets["MONGO_URI"]
 client = MongoClient(MONGO_URI)
 db = client["price_db"]
 collection = db["products"]
@@ -17,7 +17,7 @@ if "product_name_text" not in collection.index_information():
     collection.create_index([("product_name", "text")])
 
 # --- OpenAI Client 설정 ---
-api_key=""
+api_key=st.secrets["api_key"]
 openai_client = OpenAI(
     api_key=api_key
 )
