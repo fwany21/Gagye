@@ -14,10 +14,8 @@ from pymongo.server_api import ServerApi
 
 MONGO_URI = st.secrets["MONGO_URI"]
 
-uri = MONGO_URI
-
 # Create a new client and connect to the server
-client = MongoClient(uri, server_api=ServerApi('1'))
+client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
 
 # Send a ping to confirm a successful connection
 try:
@@ -27,10 +25,9 @@ except Exception as e:
     print(e)
 
 
-
 # --- MongoDB 연결 및 인덱스 설정 ---
-MONGO_URI = st.secrets["MONGO_URI"]
-client = MongoClient(MONGO_URI)
+# MONGO_URI = st.secrets["MONGO_URI"]
+# client = MongoClient(MONGO_URI)
 db = client["price_db"]
 collection = db["products"]
 
