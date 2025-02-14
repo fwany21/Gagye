@@ -12,12 +12,14 @@ client = MongoClient(MONGO_URI)
 db = client["price_db"]
 collection = db["products"]
 
+print(f"{st.secrets["TEST_KEY"]}")
+
 # 제품명 필드에 대해 텍스트 인덱스 생성 (최초 실행 시)
 if "product_name_text" not in collection.index_information():
     collection.create_index([("product_name", "text")])
 
 # --- OpenAI Client 설정 ---
-api_key=st.secrets["api_key"]
+api_key=st.secrets["API_KEY"]
 openai_client = OpenAI(
     api_key=api_key
 )
