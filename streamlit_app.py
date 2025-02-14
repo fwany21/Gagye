@@ -2,53 +2,55 @@ import streamlit as st
 from openai import OpenAI
 import base64
 import json
-from pymongo import MongoClient
+from pymongo.mongo_client import MongoClient
 from PIL import Image
 import io
 from datetime import datetime
-
-
-
-from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 
+# --- 사용자 인증: passcode 입력 ---
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
+
+passcode_input = st.text_input("Passcode 입력", type="password")
+if passcode_input:
+    if passcode_input == st.secrets["PASSCODE"]:
+        st.session_state["authenticated"] = True
+    else:
+        st.error("잘못된 passcode입니다.")
+
+if not st.session_state["authenticated"]:
+    st.stop()
+
+# --- MongoDB 연결 및 설정 ---
 MONGO_URI = st.secrets["MONGO_URI"]
 
 # Create a new client and connect to the server
 client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
-
-# Send a ping to confirm a successful connection
 try:
     client.admin.command('ping')
     print("Pinged your deployment. You successfully connected to MongoDB!")
 except Exception as e:
     print(e)
 
-
-# --- MongoDB 연결 및 인덱스 설정 ---
-# MONGO_URI = st.secrets["MONGO_URI"]
-# client = MongoClient(MONGO_URI)
 db = client["price_db"]
 collection = db["products"]
 
-print(f"{st.secrets["TEST_KEY"]}")
+print(f'{st.secrets["TEST_KEY"]}')
 
 # 제품명 필드에 대해 텍스트 인덱스 생성 (최초 실행 시)
 if "product_name_text" not in collection.index_information():
     collection.create_index([("product_name", "text")])
 
 # --- OpenAI Client 설정 ---
-api_key=st.secrets["API_KEY"]
+API_KEY = st.secrets["API_KEY"]
 openai_client = OpenAI(
-    api_key=api_key
+    api_key=API_KEY
 )
-
 
 # --- 이미지 인코딩 함수 ---
 def encode_image(image_bytes, target_size_kb=150):
-    image = Image.open(io.BytesIO(image_bytes)).convert(
-        "RGB"
-    )  # 이미지 모드를 RGB로 변환
+    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")  # 이미지 모드를 RGB로 변환
     quality = 95
     while True:
         output = io.BytesIO()
@@ -61,14 +63,10 @@ def encode_image(image_bytes, target_size_kb=150):
 
     return base64.b64encode(compressed_image_bytes).decode("utf-8")
 
-
 # --- GPT-4 Vision을 통한 이미지 분석 함수 ---
 def analyze_image(image_bytes):
     try:
-        # 이미지 바이트를 Base64로 인코딩
         base64_image = encode_image(image_bytes)
-
-        # API 요청 메시지 구성
         messages = [
             {
                 "role": "system",
@@ -106,22 +104,16 @@ def analyze_image(image_bytes):
                 ],
             },
         ]
-
-        # GPT-4 Vision API 호출
         response = openai_client.chat.completions.create(
             model="gpt-4o-mini", messages=messages
         )
-
-        # 응답에서 메시지 내용 추출
         result_text = response.choices[0].message.content
-        # GPT가 JSON 형식의 결과를 반환한다고 가정
         info = json.loads(result_text)
         info["date"] = datetime.today().strftime('%Y-%m-%d')
         return info
     except Exception as e:
         st.error(f"이미지 분석 중 오류 발생: {e}")
         return None
-
 
 # --- 유사 제품 검색 함수 ---
 def find_similar_products(product_name):
@@ -131,25 +123,21 @@ def find_similar_products(product_name):
     similar_docs = list(collection.find({"$text": {"$search": product_name}}))
     return similar_docs
 
-
 # --- Streamlit UI 구성 ---
 st.title("제품 가격표 분석 및 이력 기록")
 st.write("카메라로 제품의 가격표를 촬영하세요.")
 
 # 이미지 업로드
-uploaded_file = st.file_uploader(
-    "제품의 가격표를 촬영하여 업로드하세요.", type=["jpg", "jpeg", "png"]
-)
+uploaded_file = st.file_uploader("제품의 가격표를 촬영하여 업로드하세요.", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    # 이미지를 화면에 표시
     image = Image.open(uploaded_file)
     st.image(image, caption="업로드된 이미지", use_container_width=True)
 
     # 이미지를 바이트로 변환
-    image_bytes = io.BytesIO()
-    image.save(image_bytes, format="PNG")
-    image_bytes = image_bytes.getvalue()
+    image_bytes_io = io.BytesIO()
+    image.save(image_bytes_io, format="PNG")
+    image_bytes = image_bytes_io.getvalue()
 
     with st.spinner("이미지 분석 중..."):
         info = analyze_image(image_bytes)
@@ -157,7 +145,6 @@ if uploaded_file is not None:
     if info:
         st.success("이미지 분석 완료!")
         st.subheader("분석 결과")
-
         with st.expander("분석된 JSON 데이터"):
             st.json(info)
 
