@@ -6,6 +6,28 @@ from pymongo import MongoClient
 from PIL import Image
 import io
 from datetime import datetime
+
+
+
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
+
+MONGO_URI = st.secrets["MONGO_URI"]
+
+uri = MONGO_URI
+
+# Create a new client and connect to the server
+client = MongoClient(uri, server_api=ServerApi('1'))
+
+# Send a ping to confirm a successful connection
+try:
+    client.admin.command('ping')
+    print("Pinged your deployment. You successfully connected to MongoDB!")
+except Exception as e:
+    print(e)
+
+
+
 # --- MongoDB 연결 및 인덱스 설정 ---
 MONGO_URI = st.secrets["MONGO_URI"]
 client = MongoClient(MONGO_URI)
