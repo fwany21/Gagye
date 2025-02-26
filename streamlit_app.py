@@ -125,15 +125,26 @@ def find_similar_products(product_name):
     similar_docs = list(collection.find({"$text": {"$search": product_name}}))
     return similar_docs
 
-# --- 제품 검색 함수 (LIKE 방식) ---
-def find_products_like(product_name):
+# --- 제품 검색 함수 (LIKE 방식 및 날짜 옵션) ---
+def find_products_by_name_and_date(product_name, start_date=None, end_date=None):
     """
-    MongoDB에서 제품명이 LIKE 방식 패턴으로 검색합니다.
-    대소문자 구분 없이 부분 일치를 사용합니다.
+    제품명을 LIKE 방식으로 검색하고, 선택적으로 날짜 범위로 필터링합니다.
+    product_name: 검색할 제품명 (부분 일치, 대소문자 구분없음).
+    start_date, end_date: YYYY-MM-DD 형태의 문자열. 둘 다 제공되면 그 사이의 날짜로 필터링합니다.
     """
-    pattern = f".*{product_name}.*"
-    result = collection.find({"product_name": {"$regex": pattern, "$options": "i"}})
-    return list(result)
+    query = {}
+    if product_name:
+        pattern = f".*{product_name}.*"
+        query["product_name"] = {"$regex": pattern, "$options": "i"}
+    if start_date and end_date:
+        query["date"] = {"$gte": start_date, "$lte": end_date}
+    elif start_date:
+        query["date"] = start_date
+    elif end_date:
+        query["date"] = end_date
+
+    results = collection.find(query)
+    return list(results)
 
 # --- Streamlit UI 구성 ---
 
@@ -175,17 +186,20 @@ if uploaded_file is not None:
         else:
             st.info("유사한 제품 이력이 없습니다.")
 
-# --- 사이드바: 햄버거 메뉴를 통한 제품 검색 (LIKE 방식) ---
+# --- 사이드바: 햄버거 메뉴를 통한 제품 검색 (LIKE 방식 및 날짜 옵션) ---
 st.sidebar.header("제품 검색")
 search_name = st.sidebar.text_input("제품 이름을 입력하세요")
+col1, col2 = st.sidebar.columns(2)
+start_date_input = col1.text_input("시작 날짜 (YYYY-MM-DD)")
+end_date_input = col2.text_input("종료 날짜 (YYYY-MM-DD)")
 if st.sidebar.button("검색"):
-    if search_name:
-        similar_docs = find_products_like(search_name)
+    if search_name or start_date_input or end_date_input:
+        results = find_products_by_name_and_date(search_name, start_date_input, end_date_input)
         st.sidebar.subheader("검색 결과")
-        if similar_docs:
-            for doc in similar_docs:
+        if results:
+            for doc in results:
                 st.sidebar.write(doc)
         else:
-            st.sidebar.info("유사한 제품 이력이 없습니다.")
+            st.sidebar.info("검색 결과가 없습니다.")
     else:
-        st.sidebar.warning("검색할 제품 이름을 입력해주세요.")
+        st.sidebar.warning("검색할 제품 이름 또는 날짜를 입력해주세요.")
