@@ -31,6 +31,7 @@ if not st.session_state["authenticated"]:
                 st.error("잘못된 passcode입니다.")
     if not st.session_state["authenticated"]:
         st.stop()  # 인증되지 않으면 나머지 코드 실행 중단
+st.empty()
 
 # --- MongoDB 연결 및 설정 ---
 MONGO_URI = st.secrets["MONGO_URI"]
