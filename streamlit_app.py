@@ -20,16 +20,16 @@ if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
 if not st.session_state["authenticated"]:
-    with st.form("passcode_form"):
+    with st.form("passcode_form", clear_on_submit=True):
         passcode_input = st.text_input("Passcode 입력", type="password", placeholder="비밀번호를 입력하세요")
         submit_button = st.form_submit_button("제출")
         if submit_button:
             if passcode_input == st.secrets["PASSCODE"]:
                 st.session_state["authenticated"] = True
+                st.experimental_rerun()  # 인증 성공 후 다시 실행하여 패스코드 폼을 제거함
             else:
                 st.error("잘못된 passcode입니다.")
-    if not st.session_state["authenticated"]:
-        st.stop()  # 인증되지 않은 경우 이후 코드 실행 중단
+    st.stop()  # 인증되지 않은 경우 이후 코드 실행 중단
 
 # --- MongoDB 연결 및 설정 ---
 MONGO_URI = st.secrets["MONGO_URI"]
