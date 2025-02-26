@@ -116,13 +116,24 @@ def analyze_image(image_bytes):
         st.error(f"이미지 분석 중 오류 발생: {e}")
         return None
 
-# --- 유사 제품 검색 함수 ---
+# --- 유사 제품 검색 함수 (텍스트 검색) ---
 def find_similar_products(product_name):
     """
     MongoDB에서 제품명이 유사한 기록을 검색합니다.
+    텍스트 검색을 사용하여 분석 후 자동 검색에 사용됩니다.
     """
     similar_docs = list(collection.find({"$text": {"$search": product_name}}))
     return similar_docs
+
+# --- 제품 검색 함수 (LIKE 방식) ---
+def find_products_like(product_name):
+    """
+    MongoDB에서 제품명이 LIKE 방식 패턴으로 검색합니다.
+    대소문자 구분 없이 부분 일치를 사용합니다.
+    """
+    pattern = f".*{product_name}.*"
+    result = collection.find({"product_name": {"$regex": pattern, "$options": "i"}})
+    return list(result)
 
 # --- Streamlit UI 구성 ---
 
@@ -164,12 +175,12 @@ if uploaded_file is not None:
         else:
             st.info("유사한 제품 이력이 없습니다.")
 
-# --- 사이드바: 햄버거 메뉴를 통한 제품 검색 ---
+# --- 사이드바: 햄버거 메뉴를 통한 제품 검색 (LIKE 방식) ---
 st.sidebar.header("제품 검색")
 search_name = st.sidebar.text_input("제품 이름을 입력하세요")
 if st.sidebar.button("검색"):
     if search_name:
-        similar_docs = find_similar_products(search_name)
+        similar_docs = find_products_like(search_name)
         st.sidebar.subheader("검색 결과")
         if similar_docs:
             for doc in similar_docs:
