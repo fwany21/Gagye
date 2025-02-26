@@ -189,12 +189,20 @@ if uploaded_file is not None:
 # --- 사이드바: 햄버거 메뉴를 통한 제품 검색 (LIKE 방식 및 날짜 옵션) ---
 st.sidebar.header("제품 검색")
 search_name = st.sidebar.text_input("제품 이름을 입력하세요")
-col1, col2 = st.sidebar.columns(2)
-start_date_input = col1.text_input("시작 날짜 (YYYY-MM-DD)")
-end_date_input = col2.text_input("종료 날짜 (YYYY-MM-DD)")
+
+apply_date_filter = st.sidebar.checkbox("날짜 필터 적용")
+start_date_str = None
+end_date_str = None
+if apply_date_filter:
+    start_date = st.sidebar.date_input("시작 날짜", value=datetime.today())
+    end_date = st.sidebar.date_input("종료 날짜", value=datetime.today())
+    # Convert date object to string in YYYY-MM-DD format
+    start_date_str = start_date.strftime('%Y-%m-%d')
+    end_date_str = end_date.strftime('%Y-%m-%d')
+
 if st.sidebar.button("검색"):
-    if search_name or start_date_input or end_date_input:
-        results = find_products_by_name_and_date(search_name, start_date_input, end_date_input)
+    if search_name or apply_date_filter:
+        results = find_products_by_name_and_date(search_name, start_date_str, end_date_str)
         st.sidebar.subheader("검색 결과")
         if results:
             for doc in results:
