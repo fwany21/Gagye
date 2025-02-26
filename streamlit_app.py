@@ -125,6 +125,8 @@ def find_similar_products(product_name):
     return similar_docs
 
 # --- Streamlit UI 구성 ---
+
+# 메인 페이지 제목 및 설명
 st.title("제품 가격표 분석 및 이력 기록")
 st.write("카메라로 제품의 가격표를 촬영하세요.")
 
@@ -153,11 +155,26 @@ if uploaded_file is not None:
         insert_result = collection.insert_one(info)
         st.write(f"제품 정보가 저장되었습니다. (ID: {insert_result.inserted_id})")
 
-        # 기존 DB에서 유사한 제품 이력 검색
+        # 기존 DB에서 유사한 제품 이력 검색 및 출력 (분석 후 자동 검색)
         similar = find_similar_products(info.get("product_name", ""))
         if similar:
-            st.subheader("유사한 제품 이력")
+            st.subheader("유사한 제품 이력 (자동 검색)")
             for doc in similar:
                 st.write(doc)
         else:
             st.info("유사한 제품 이력이 없습니다.")
+
+# --- 사이드바: 햄버거 메뉴를 통한 제품 검색 ---
+st.sidebar.header("제품 검색")
+search_name = st.sidebar.text_input("제품 이름을 입력하세요")
+if st.sidebar.button("검색"):
+    if search_name:
+        similar_docs = find_similar_products(search_name)
+        st.sidebar.subheader("검색 결과")
+        if similar_docs:
+            for doc in similar_docs:
+                st.sidebar.write(doc)
+        else:
+            st.sidebar.info("유사한 제품 이력이 없습니다.")
+    else:
+        st.sidebar.warning("검색할 제품 이름을 입력해주세요.")
