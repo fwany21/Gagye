@@ -19,19 +19,17 @@ st.set_page_config(
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
-# 인증 입력창을 별도의 컨테이너에 배치하여, 인증 시에 이 컨테이너를 비울 수 있도록 함
-auth_container = st.empty()
 if not st.session_state["authenticated"]:
-    with auth_container.form("passcode_form"):
+    with st.form("passcode_form"):
         passcode_input = st.text_input("Passcode 입력", type="password", placeholder="비밀번호를 입력하세요")
         submit_button = st.form_submit_button("제출")
         if submit_button:
             if passcode_input == st.secrets["PASSCODE"]:
                 st.session_state["authenticated"] = True
-                auth_container.empty()  # 인증 성공 시 입력창 삭제
             else:
                 st.error("잘못된 passcode입니다.")
-    st.stop()  # 인증되지 않은 경우 이후 코드 실행 중단
+    if not st.session_state["authenticated"]:
+        st.stop()  # 인증되지 않은 경우 이후 코드 실행 중단
 
 # --- MongoDB 연결 및 설정 ---
 MONGO_URI = st.secrets["MONGO_URI"]
