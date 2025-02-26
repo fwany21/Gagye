@@ -19,9 +19,11 @@ st.set_page_config(
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
-# 인증되지 않은 경우 passcode 입력폼을 표시하고 이후 코드 실행을 중단합니다.
+# passcode 입력 폼을 담을 placeholder 생성
+passcode_placeholder = st.empty()
+
 if not st.session_state["authenticated"]:
-    with st.form("passcode_form", clear_on_submit=True):
+    with passcode_placeholder.form("passcode_form", clear_on_submit=True):
         passcode_input = st.text_input("Passcode 입력", type="password", placeholder="비밀번호를 입력하세요")
         submit_button = st.form_submit_button("제출")
         if submit_button:
@@ -30,8 +32,11 @@ if not st.session_state["authenticated"]:
             else:
                 st.error("잘못된 passcode입니다.")
     if not st.session_state["authenticated"]:
-        st.stop()  # 인증되지 않으면 나머지 코드 실행 중단
-st.empty()
+        st.stop()
+    else:
+        # 인증 성공 시 passcode 폼 숨기기
+        passcode_placeholder.empty()
+
 
 # --- MongoDB 연결 및 설정 ---
 MONGO_URI = st.secrets["MONGO_URI"]
