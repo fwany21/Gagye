@@ -8,11 +8,19 @@ import io
 from datetime import datetime
 from pymongo.server_api import ServerApi
 
+# 페이지 설정: 모바일 친화적 UX를 위해 기본 레이아웃을 centered로 설정하고, 메뉴 숨김 및 스타일 조절
+st.set_page_config(
+    page_title="제품 가격표 분석 및 검색",
+    layout="centered",
+    initial_sidebar_state="expanded",
+)
+
 # --- 사용자 인증: passcode 입력 ---
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
-passcode_input = st.text_input("Passcode 입력", type="password")
+# 모바일 브라우저를 감안하여 input 필드의 폭을 넓게 조정
+passcode_input = st.text_input("Passcode 입력", type="password", placeholder="비밀번호를 입력하세요")
 if passcode_input:
     if passcode_input == st.secrets["PASSCODE"]:
         st.session_state["authenticated"] = True
@@ -24,33 +32,27 @@ if not st.session_state["authenticated"]:
 
 # --- MongoDB 연결 및 설정 ---
 MONGO_URI = st.secrets["MONGO_URI"]
-
-# Create a new client and connect to the server
 client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
 try:
     client.admin.command('ping')
-    print("Pinged your deployment. You successfully connected to MongoDB!")
+    st.info("MongoDB 연결 성공!")
 except Exception as e:
-    print(e)
+    st.error(f"MongoDB 연결 오류: {e}")
 
 db = client["price_db"]
 collection = db["products"]
 
-print(f'{st.secrets["TEST_KEY"]}')
-
-# 제품명 필드에 대해 텍스트 인덱스 생성 (최초 실행 시)
+# 초기 인덱스 설정 (최초 실행 시)
 if "product_name_text" not in collection.index_information():
     collection.create_index([("product_name", "text")])
 
 # --- OpenAI Client 설정 ---
 API_KEY = st.secrets["API_KEY"]
-openai_client = OpenAI(
-    api_key=API_KEY
-)
+openai_client = OpenAI(api_key=API_KEY)
 
 # --- 이미지 인코딩 함수 ---
 def encode_image(image_bytes, target_size_kb=150):
-    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")  # 이미지 모드를 RGB로 변환
+    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     quality = 95
     while True:
         output = io.BytesIO()
@@ -60,7 +62,6 @@ def encode_image(image_bytes, target_size_kb=150):
         if size_kb <= target_size_kb or quality <= 5:
             break
         quality -= 5
-
     return base64.b64encode(compressed_image_bytes).decode("utf-8")
 
 # --- GPT-4 Vision을 통한 이미지 분석 함수 ---
@@ -90,7 +91,7 @@ def analyze_image(image_bytes):
   "discounted_price": 18000,
 }}
 
-반환하는 JSON은 오직 순수한 JSON 데이터만 포함하고, 어떠한 코드 블록 표시(예: ```json)나 추가 텍스트 없이 json.loads로 바로 파싱할 수 있는 형식이어야 합니다.
+반환하는 JSON은 오직 순수한 JSON 데이터만 포함하고, 어떠한 코드 블록 표시나 추가 텍스트 없이 바로 파싱 가능한 형식이어야 합니다.
 할인 정보가 전혀 없다면 discount_amount, discount_condition, discounted_price를 전부 0 또는 "0"으로 처리해주세요.
 제품명은 영어보다는 한글을 우선해서 적용해 주세요.
                 """,
@@ -116,22 +117,13 @@ def analyze_image(image_bytes):
         st.error(f"이미지 분석 중 오류 발생: {e}")
         return None
 
-# --- 유사 제품 검색 함수 (텍스트 검색) ---
+# --- 유사 제품 검색 함수 (텍스트 검색: 자동 검색용) ---
 def find_similar_products(product_name):
-    """
-    MongoDB에서 제품명이 유사한 기록을 검색합니다.
-    텍스트 검색을 사용하여 분석 후 자동 검색에 사용됩니다.
-    """
     similar_docs = list(collection.find({"$text": {"$search": product_name}}))
     return similar_docs
 
 # --- 제품 검색 함수 (LIKE 방식 및 날짜 옵션) ---
 def find_products_by_name_and_date(product_name, start_date=None, end_date=None):
-    """
-    제품명을 LIKE 방식으로 검색하고, 선택적으로 날짜 범위로 필터링합니다.
-    product_name: 검색할 제품명 (부분 일치, 대소문자 구분없음).
-    start_date, end_date: YYYY-MM-DD 형태의 문자열. 둘 다 제공되면 그 사이의 날짜로 필터링합니다.
-    """
     query = {}
     if product_name:
         pattern = f".*{product_name}.*"
@@ -139,64 +131,59 @@ def find_products_by_name_and_date(product_name, start_date=None, end_date=None)
     if start_date and end_date:
         query["date"] = {"$gte": start_date, "$lte": end_date}
     elif start_date:
-        query["date"] = start_date
+        query["date"] = {"$gte": start_date}
     elif end_date:
-        query["date"] = end_date
-
+        query["date"] = {"$lte": end_date}
     results = collection.find(query)
     return list(results)
 
-# --- Streamlit UI 구성 ---
-
-# 메인 페이지 제목 및 설명
+# --- 메인 콘텐츠 영역 ---
 st.title("제품 가격표 분석 및 이력 기록")
-st.write("카메라로 제품의 가격표를 촬영하세요.")
+st.write("카메라로 제품의 가격표를 촬영하여 업로드하세요.")
 
-# 이미지 업로드
-uploaded_file = st.file_uploader("제품의 가격표를 촬영하여 업로드하세요.", type=["jpg", "jpeg", "png"])
+with st.container():
+    uploaded_file = st.file_uploader(
+        "가격표 이미지 선택 (jpg, jpeg, png)", type=["jpg", "jpeg", "png"]
+    )
+    if uploaded_file is not None:
+        image = Image.open(uploaded_file)
+        # 모바일 화면 고려: 이미지가 화면에 맞게 조정됨
+        st.image(image, caption="업로드된 이미지", use_column_width=True)
+        image_bytes_io = io.BytesIO()
+        image.save(image_bytes_io, format="PNG")
+        image_bytes = image_bytes_io.getvalue()
 
-if uploaded_file is not None:
-    image = Image.open(uploaded_file)
-    st.image(image, caption="업로드된 이미지", use_container_width=True)
+        with st.spinner("이미지 분석 중..."):
+            info = analyze_image(image_bytes)
 
-    # 이미지를 바이트로 변환
-    image_bytes_io = io.BytesIO()
-    image.save(image_bytes_io, format="PNG")
-    image_bytes = image_bytes_io.getvalue()
+        if info:
+            st.success("이미지 분석 완료!")
+            st.subheader("분석 결과")
+            with st.expander("분석된 JSON 데이터"):
+                st.json(info)
 
-    with st.spinner("이미지 분석 중..."):
-        info = analyze_image(image_bytes)
+            # 제품 정보 MongoDB 저장 (모바일에서도 쉽게 확인할 수 있도록 결과 표시)
+            insert_result = collection.insert_one(info)
+            st.info(f"제품 정보 저장 완료 (ID: {insert_result.inserted_id})")
 
-    if info:
-        st.success("이미지 분석 완료!")
-        st.subheader("분석 결과")
-        with st.expander("분석된 JSON 데이터"):
-            st.json(info)
+            # 자동 유사 제품 검색 (분석 후 바로 결과 표시)
+            similar = find_similar_products(info.get("product_name", ""))
+            if similar:
+                st.subheader("유사한 제품 이력 (자동 검색)")
+                for doc in similar:
+                    st.write(doc)
+            else:
+                st.info("유사한 제품 이력이 없습니다.")
 
-        # MongoDB에 제품 정보 저장
-        insert_result = collection.insert_one(info)
-        st.write(f"제품 정보가 저장되었습니다. (ID: {insert_result.inserted_id})")
-
-        # 기존 DB에서 유사한 제품 이력 검색 및 출력 (분석 후 자동 검색)
-        similar = find_similar_products(info.get("product_name", ""))
-        if similar:
-            st.subheader("유사한 제품 이력 (자동 검색)")
-            for doc in similar:
-                st.write(doc)
-        else:
-            st.info("유사한 제품 이력이 없습니다.")
-
-# --- 사이드바: 햄버거 메뉴를 통한 제품 검색 (LIKE 방식 및 날짜 옵션) ---
-st.sidebar.header("제품 검색")
-search_name = st.sidebar.text_input("제품 이름을 입력하세요")
-
+# --- 사이드바: 제품 검색 (모바일에 최적화된 낮은 메뉴 구조) ---
+st.sidebar.title("제품 검색")
+search_name = st.sidebar.text_input("제품 이름", placeholder="예: 예시상품")
 apply_date_filter = st.sidebar.checkbox("날짜 필터 적용")
 start_date_str = None
 end_date_str = None
 if apply_date_filter:
     start_date = st.sidebar.date_input("시작 날짜", value=datetime.today())
     end_date = st.sidebar.date_input("종료 날짜", value=datetime.today())
-    # Convert date object to string in YYYY-MM-DD format
     start_date_str = start_date.strftime('%Y-%m-%d')
     end_date_str = end_date.strftime('%Y-%m-%d')
 
@@ -210,4 +197,4 @@ if st.sidebar.button("검색"):
         else:
             st.sidebar.info("검색 결과가 없습니다.")
     else:
-        st.sidebar.warning("검색할 제품 이름 또는 날짜를 입력해주세요.")
+        st.sidebar.warning("검색할 제품 이름 또는 날짜 필터를 선택해주세요.")
