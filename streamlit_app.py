@@ -19,16 +19,19 @@ st.set_page_config(
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
-# 모바일 브라우저를 감안하여 input 필드의 폭을 넓게 조정
-passcode_input = st.text_input("Passcode 입력", type="password", placeholder="비밀번호를 입력하세요")
-if passcode_input:
-    if passcode_input == st.secrets["PASSCODE"]:
-        st.session_state["authenticated"] = True
-    else:
-        st.error("잘못된 passcode입니다.")
-
+# 인증 입력창을 별도의 컨테이너에 배치하여, 인증 시에 이 컨테이너를 비울 수 있도록 함
+auth_container = st.empty()
 if not st.session_state["authenticated"]:
-    st.stop()
+    with auth_container.form("passcode_form"):
+        passcode_input = st.text_input("Passcode 입력", type="password", placeholder="비밀번호를 입력하세요")
+        submit_button = st.form_submit_button("제출")
+        if submit_button:
+            if passcode_input == st.secrets["PASSCODE"]:
+                st.session_state["authenticated"] = True
+                auth_container.empty()  # 인증 성공 시 입력창 삭제
+            else:
+                st.error("잘못된 passcode입니다.")
+    st.stop()  # 인증되지 않은 경우 이후 코드 실행 중단
 
 # --- MongoDB 연결 및 설정 ---
 MONGO_URI = st.secrets["MONGO_URI"]
@@ -147,7 +150,6 @@ with st.container():
     )
     if uploaded_file is not None:
         image = Image.open(uploaded_file)
-        # 모바일 화면 고려: 이미지가 화면에 맞게 조정됨
         st.image(image, caption="업로드된 이미지", use_column_width=True)
         image_bytes_io = io.BytesIO()
         image.save(image_bytes_io, format="PNG")
@@ -162,7 +164,7 @@ with st.container():
             with st.expander("분석된 JSON 데이터"):
                 st.json(info)
 
-            # 제품 정보 MongoDB 저장 (모바일에서도 쉽게 확인할 수 있도록 결과 표시)
+            # 제품 정보 MongoDB 저장
             insert_result = collection.insert_one(info)
             st.info(f"제품 정보 저장 완료 (ID: {insert_result.inserted_id})")
 
@@ -175,7 +177,7 @@ with st.container():
             else:
                 st.info("유사한 제품 이력이 없습니다.")
 
-# --- 사이드바: 제품 검색 (모바일에 최적화된 낮은 메뉴 구조) ---
+# --- 사이드바: 제품 검색 (모바일에 최적화된 메뉴 구성) ---
 st.sidebar.title("제품 검색")
 search_name = st.sidebar.text_input("제품 이름", placeholder="예: 예시상품")
 apply_date_filter = st.sidebar.checkbox("날짜 필터 적용")
