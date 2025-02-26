@@ -92,6 +92,7 @@ def analyze_image(image_bytes):
 
 반환하는 JSON은 오직 순수한 JSON 데이터만 포함하고, 어떠한 코드 블록 표시(예: ```json)나 추가 텍스트 없이 json.loads로 바로 파싱할 수 있는 형식이어야 합니다.
 할인 정보가 전혀 없다면 discount_amount, discount_condition, discounted_price를 전부 0 또는 "0"으로 처리해주세요.
+제품명은 영어보다는 한글을 우선해서 적용해 주세요.
                 """,
             },
             {
