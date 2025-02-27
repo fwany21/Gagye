@@ -1,1 +1,4 @@
 .venv/
+.streamlit/secrets.toml
+script.sh
+streamlit.log
