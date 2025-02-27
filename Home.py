@@ -7,8 +7,9 @@ from PIL import Image
 import io
 from datetime import datetime
 from pymongo.server_api import ServerApi
+import pandas as pd
 
-# 페이지 설정: 모바일 친화적 UX를 위해 기본 레이아웃을 centered로 설정하고, 메뉴 숨김 및 스타일 조절
+# 페이지 설정
 st.set_page_config(
     page_title="제품 가격표 분석 및 검색",
     layout="centered",
@@ -36,7 +37,6 @@ if not st.session_state["authenticated"]:
     else:
         # 인증 성공 시 passcode 폼 숨기기
         passcode_placeholder.empty()
-
 
 # --- MongoDB 연결 및 설정 ---
 MONGO_URI = st.secrets["MONGO_URI"]
@@ -130,23 +130,37 @@ def find_similar_products(product_name):
     similar_docs = list(collection.find({"$text": {"$search": product_name}}))
     return similar_docs
 
-# --- 제품 검색 함수 (LIKE 방식 및 날짜 옵션) ---
-def find_products_by_name_and_date(product_name, start_date=None, end_date=None):
-    query = {}
-    if product_name:
-        pattern = f".*{product_name}.*"
-        query["product_name"] = {"$regex": pattern, "$options": "i"}
-    if start_date and end_date:
-        query["date"] = {"$gte": start_date, "$lte": end_date}
-    elif start_date:
-        query["date"] = {"$gte": start_date}
-    elif end_date:
-        query["date"] = {"$lte": end_date}
-    results = collection.find(query)
-    return list(results)
+# --- 검색 결과를 보기 좋게 표시하기 위한 함수 ---
+def format_search_results(results):
+    if not results:
+        return None
+    
+    # 검색 결과를 DataFrame으로 변환
+    df = pd.DataFrame(results)
+    
+    # ObjectId 컬럼 제거
+    if '_id' in df.columns:
+        df = df.drop('_id', axis=1)
+    
+    # 컬럼 순서 재정렬
+    columns_order = ['date', 'product_name', 'price', 'discount_amount', 'discount_condition', 'discounted_price']
+    df = df.reindex(columns=columns_order)
+    
+    # 컬럼명 한글로 변경
+    column_names = {
+        'date': '날짜',
+        'product_name': '제품명',
+        'price': '정상가격',
+        'discount_amount': '할인금액',
+        'discount_condition': '할인조건',
+        'discounted_price': '할인적용가'
+    }
+    df = df.rename(columns=column_names)
+    
+    return df
 
 # --- 메인 콘텐츠 영역 ---
-st.title("제품 가격표 분석 및 이력 기록")
+st.title("제품 가격표 분석")
 st.write("카메라로 제품의 가격표를 촬영하여 업로드하세요.")
 
 with st.container():
@@ -177,31 +191,8 @@ with st.container():
             similar = find_similar_products(info.get("product_name", ""))
             if similar:
                 st.subheader("유사한 제품 이력 (자동 검색)")
-                for doc in similar:
-                    st.write(doc)
+                df_similar = format_search_results(similar)
+                if df_similar is not None:
+                    st.dataframe(df_similar, use_container_width=True)
             else:
                 st.info("유사한 제품 이력이 없습니다.")
-
-# --- 사이드바: 제품 검색 (모바일에 최적화된 메뉴 구성) ---
-st.sidebar.title("제품 검색")
-search_name = st.sidebar.text_input("제품 이름", placeholder="예: 예시상품")
-apply_date_filter = st.sidebar.checkbox("날짜 필터 적용")
-start_date_str = None
-end_date_str = None
-if apply_date_filter:
-    start_date = st.sidebar.date_input("시작 날짜", value=datetime.today())
-    end_date = st.sidebar.date_input("종료 날짜", value=datetime.today())
-    start_date_str = start_date.strftime('%Y-%m-%d')
-    end_date_str = end_date.strftime('%Y-%m-%d')
-
-if st.sidebar.button("검색"):
-    if search_name or apply_date_filter:
-        results = find_products_by_name_and_date(search_name, start_date_str, end_date_str)
-        st.sidebar.subheader("검색 결과")
-        if results:
-            for doc in results:
-                st.sidebar.write(doc)
-        else:
-            st.sidebar.info("검색 결과가 없습니다.")
-    else:
-        st.sidebar.warning("검색할 제품 이름 또는 날짜 필터를 선택해주세요.")
