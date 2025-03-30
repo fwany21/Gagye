@@ -80,28 +80,28 @@ def analyze_image(image_bytes):
             {
                 "role": "system",
                 "content": f"""
-너는 이미지 분석 도우미야. 아래 가격표 이미지에서 
-제품명, 가격, 할인 금액, 할인 조건, 할인 가격을 추출해줘. 
-할인하지 않는 경우 할인 관련 값은 0으로 표시해.
+너는 이미지 분석 도우미야. 아래 가격표 이미지에서  
+제품명, 가격, 할인 금액, 할인 조건, 할인 가격을 추출해줘.  
+할인하지 않는 경우 discount_amount와 discount_condition은 0, discounted_price는 price와 같게 표시해.  
+
 다음 항목을 JSON 포맷으로 뽑아주세요:
 - product_name: 제품명 (string)
 - price: 정상가격 (number)
 - discount_amount: 할인금액 (없으면 0)
 - discount_condition: 할인조건 (없으면 "0")
-- discounted_price: 할인적용 후 가격 (없으면 0)
+- discounted_price: 할인적용 후 가격 (할인 없으면 price와 동일)
 
-출력 예시는 다음 형태여야 합니다:
-{{
-  "product_name": "예시상품",
-  "price": 20000,
-  "discount_amount": 2000,
-  "discount_condition": "2+1행사",
-  "discounted_price": 18000,
-}}
+출력 예시는 다음과 같아야 해:
+{  
+  "product_name": "예시상품",  
+  "price": 20000,  
+  "discount_amount": 0,  
+  "discount_condition": "0",  
+  "discounted_price": 20000  
+}
 
-반환하는 JSON은 오직 순수한 JSON 데이터만 포함하고, 어떠한 코드 블록 표시나 추가 텍스트 없이 바로 파싱 가능한 형식이어야 합니다.
-할인 정보가 전혀 없다면 discount_amount, discount_condition, discounted_price를 전부 0 또는 "0"으로 처리해주세요.
-제품명은 영어보다는 한글을 우선해서 적용해 주세요.
+반환하는 JSON은 오직 순수한 JSON 데이터만 포함하고, 코드 블록이나 추가 설명 없이 바로 파싱 가능해야 해.
+제품명은 영어보다는 한글을 우선해서 적용해줘.
                 """,
             },
             {
