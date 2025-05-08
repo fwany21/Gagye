@@ -91,14 +91,24 @@ def analyze_image(image_bytes):
 - discount_condition: 할인조건 (없으면 "0")
 - discounted_price: 할인적용 후 가격 (할인 없으면 price와 동일)
 
-출력 예시는 다음과 같아야 해:
-{  
+할인 조건이 없는 제품의 출력 예시는 다음과 같아야 해:
+
+{{  
   "product_name": "예시상품",  
   "price": 20000,  
   "discount_amount": 0,  
   "discount_condition": "0",  
   "discounted_price": 20000  
-}
+}}
+
+할인 조건이 있는 제품의 출력 예시는 다음과 같아야 해:
+{{
+  "product_name": "예시상품",
+  "price": 20000,
+  "discount_amount": 2000,
+  "discount_condition": "2+1행사",
+  "discounted_price": 18000,
+}}
 
 반환하는 JSON은 오직 순수한 JSON 데이터만 포함하고, 코드 블록이나 추가 설명 없이 바로 파싱 가능해야 해.
 제품명은 영어보다는 한글을 우선해서 적용해줘.
